@@ -20,6 +20,7 @@
 
 #include <any>
 #include <asio.hpp>
+#include <regex>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -28,7 +29,6 @@
 
 namespace axeu {
   using tcp = asio::ip::tcp;
-  using error_code = asio::error_code;
 
   namespace detail {
     const std::unordered_map<unsigned short, std::string> status_phrases = {
@@ -47,16 +47,11 @@ namespace axeu {
   } // namespace detail
 
   class request {
-    std::string path;
-    std::string body;
-    std::string method;
     std::vector<std::any> params;
+    std::string method, path, body;
     std::unordered_map<std::string, std::string> headers;
 
-    template <typename T> T get_param(size_t idx) {
-      if (idx >= params.size()) throw std::out_of_range("Parameter out of range");
-      return std::any_cast<T>(params[idx]);
-    }
+    template <typename T> T get_param(size_t idx) { return std::any_cast<T>(params[idx]); }
   };
 
   class response {
@@ -67,33 +62,70 @@ namespace axeu {
 
     std::string generate_response() const {
       std::ostringstream response;
-      response << "HTTP/1.1 " << status_code << " " << axeu::detail::get_status_phrase(status_code) << "\r\n";
 
-      for (const auto &[name, value] : headers) {
+      response << "HTTP/1.1 " << status_code << " " << axeu::detail::get_status_phrase(status_code) << "\r\n";
+      for (const auto &[name, value] : headers)
         response << name << ": " << value << "\r\n";
-      }
 
       if (headers.find("Content-Length") == headers.end()) response << "Content-Length: " << body.size() << "\r\n";
       response << "\r\n" << body;
       return response.str();
     }
   };
-} // namespace axeu
 
-namespace axeu {
-
-  class App {
+  class app {
   private:
-    asio::io_context m_io;
-    tcp::acceptor m_acceptor;
     unsigned short m_port {9877};
 
-  public:
-    App() : m_acceptor(m_io) {};
+    asio::io_context m_io;
+    tcp::acceptor m_acceptor {m_io};
 
-    App &port(unsigned short port) {
+    struct Route {
+      std::string path;
+      std::regex path_regex;
+      std::vector<std::string> param_types;
+      std::function<axeu::request(const axeu::response &)> handler;
+    };
+
+    std::vector<Route> routes;
+
+    std::pair<std::string, std::vector<std::string>> compile_path(const std::string &path) {
+      if (path == "/") return {R"(^/$)", {}};
+
+      std::string part;
+      std::istringstream ss(path);
+      std::vector<std::string> types;
+      std::string regex_string = "^";
+
+      while (std::getline(ss, part, '/')) {
+        if (part.empty()) continue;
+        if (part.front() == '<' && part.back() == '>') {
+          auto type = part.substr(1, part.size() - 2);
+          regex_string += type == "int" ? "/(\\d+)" : "/([^/]+)";
+          types.push_back(type);
+        } else {
+          regex_string += "/" + part;
+        }
+      }
+
+      return {regex_string + "$", types};
+    }
+
+  public:
+    app &port(unsigned short port) {
       m_port = port;
       return *this;
+    }
+
+    void run() {
+      asio::error_code ec;
+      tcp::endpoint endpoint(tcp::v4(), m_port);
+      ec = m_acceptor.open(endpoint.protocol(), ec);
+      ec = m_acceptor.bind(endpoint, ec);
+      ec = m_acceptor.listen(asio::socket_base::max_listen_connections, ec);
+
+      ///  TODO: implement accepting logic and handling request and response
+      m_io.run();
     }
   };
 }; // namespace axeu
