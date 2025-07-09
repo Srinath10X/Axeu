@@ -1,0 +1,8 @@
+BasedOnStyle: LLVM
+IndentWidth: 2
+TabWidth: "2"
+UseTab: Never
+ColumnLimit: 80
+NamespaceIndentation: All
+SpaceBeforeCpp11BracedList: true
+AllowShortIfStatementsOnASingleLine: true
