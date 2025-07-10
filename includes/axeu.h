@@ -51,7 +51,9 @@ namespace axeu {
     std::string method, path, body;
     std::unordered_map<std::string, std::string> headers;
 
-    template <typename T> T get_param(size_t idx) { return std::any_cast<T>(params[idx]); }
+    template <typename T> T get_param(size_t idx) {
+      return std::any_cast<T>(params[idx]);
+    }
   };
 
   class response {
@@ -63,11 +65,13 @@ namespace axeu {
     std::string generate_response() const {
       std::ostringstream response;
 
-      response << "HTTP/1.1 " << status_code << " " << axeu::detail::get_status_phrase(status_code) << "\r\n";
+      response << "HTTP/1.1 " << status_code << " "
+               << axeu::detail::get_status_phrase(status_code) << "\r\n";
       for (const auto &[name, value] : headers)
         response << name << ": " << value << "\r\n";
 
-      if (headers.find("Content-Length") == headers.end()) response << "Content-Length: " << body.size() << "\r\n";
+      if (headers.find("Content-Length") == headers.end())
+        response << "Content-Length: " << body.size() << "\r\n";
       response << "\r\n" << body;
       return response.str();
     }
@@ -89,7 +93,8 @@ namespace axeu {
 
     std::vector<Route> routes;
 
-    std::pair<std::string, std::vector<std::string>> compile_path(const std::string &path) {
+    std::pair<std::string, std::vector<std::string>>
+    compile_path(const std::string &path) {
       if (path == "/") return {R"(^/$)", {}};
 
       std::string part;
