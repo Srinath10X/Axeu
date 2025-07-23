@@ -1,4 +1,4 @@
-![AxeuBanner](https://u.cubeupload.com/Srinath10X/axeubanner.png)
+![AxeuBanner](.github/assets/banner.png)
 
 <p align="center">
   <img src="https://img.shields.io/badge/status-in_development-orange"/>
